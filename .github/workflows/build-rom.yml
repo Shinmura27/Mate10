@@ -1,0 +1,68 @@
+name: Optimized Custom ROM Build
+
+on:
+  push:
+    branches:
+      - main  # Build otomatis saat ada commit ke branch 'main'
+  workflow_dispatch:  # Bisa dijalankan secara manual dari GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # Maksimal 6 jam build
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1  # Mengurangi ukuran clone untuk menghemat ruang
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt update
+          sudo apt install -y git-core repo openjdk-11-jdk ccache zip unzip
+
+      - name: Setup Cache for Faster Builds
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ccache
+            ~/.repo
+          key: ${{ runner.os }}-rom-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-rom-
+
+      - name: Clone ROM Source (NusantaraOS)
+        run: |
+          mkdir -p ~/android
+          cd ~/android
+          repo init -u https://github.com/NusantaraProject-ROM/android_manifest -b 14 --depth=1
+          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
+
+      - name: Clone Device Tree, Kernel, and Vendor
+        run: |
+          cd ~/android
+          mkdir -p device/huawei kernel/huawei vendor/huawei
+          git clone --depth=1 https://github.com/josip-k/android_device_huawei_vtr device/huawei/mate10
+          git clone --depth=1 https://github.com/Coconutat/android_kernel_huawei_blanc kernel/huawei/mate10
+
+      - name: Setup Compilation Cache
+        run: |
+          export USE_CCACHE=1
+          ccache -M 50G
+          export CCACHE_DIR=~/.ccache
+          export CCACHE_COMPRESS=1
+          export CCACHE_COMPRESSLEVEL=5
+
+      - name: Start ROM Build
+        run: |
+          cd ~/android
+          source build/envsetup.sh
+          lunch nusantara_mate10-userdebug
+          make bacon -j$(nproc --all)
+
+      - name: Upload Build Result
+        uses: actions/upload-artifact@v3
+        with:
+          name: NusantaraOS_Mate10
+          path: ~/android/out/target/product/mate10/*.zip

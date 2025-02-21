@@ -1,10 +1,10 @@
-name: Optimized Custom ROM Build
+name: Build NusantaraOS for Huawei Mate 10
 
 on:
   push:
     branches:
-      - main  # Build otomatis saat ada commit ke branch 'main'
-  workflow_dispatch:  # Bisa dijalankan secara manual dari GitHub
+      - main  # Build otomatis setiap ada commit ke branch 'main'
+  workflow_dispatch:  # Bisa dijalankan secara manual
 
 jobs:
   build:
@@ -13,9 +13,9 @@ jobs:
 
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 1  # Mengurangi ukuran clone untuk menghemat ruang
+          fetch-depth: 1  # Mempercepat clone
 
       - name: Setup Build Environment
         run: |
@@ -23,7 +23,7 @@ jobs:
           sudo apt install -y git-core repo openjdk-11-jdk ccache zip unzip
 
       - name: Setup Cache for Faster Builds
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.ccache
@@ -62,7 +62,9 @@ jobs:
           make bacon -j$(nproc --all)
 
       - name: Upload Build Result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: NusantaraOS_Mate10
           path: ~/android/out/target/product/mate10/*.zip
+          compression-level: 0  # Mempercepat upload
+          if-no-files-found: ignore  # Menghindari error jika file tidak ada
